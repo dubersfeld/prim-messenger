@@ -1,0 +1,871 @@
+<!doctype html>
+
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<title>Prim Algorithm</title>
+
+<link rel="stylesheet" th:href="@{/css/bfsDemo.css}" />
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+
+<script type="text/javascript" th:inline="javascript">
+"use strict";
+
+var baseUrl = "" + /*[[${baseUrl}]]*/;
+/*
+Prim algorithm web demo
+1) create a random undirected graph
+2) use Depth First Search to find the all components and replace the original graph by the largest component
+3) run Prim algorithm on the new connected graph 
+*/
+
+var Debugger = function() { };// create  object
+  Debugger.log = function(message) {
+  try {
+    console.log(message);
+  } catch(exception) {
+    return;
+  }
+}
+
+function canvasSupport() {
+  return !!document.createElement('canvas').getContext;
+} 
+
+function canvasApp() {
+
+  function Vertex(name) {
+    this.mName = name;
+    this.mColor = "black";
+    this.md = 0;
+    this.mf = 0;
+    this.mKey = null;
+    this.mParent = null;
+  }// Vertex
+
+  // Vertex augmentation
+  function DisplayVertex(name) {
+    Vertex.call(this, name);
+  }// DisplayVertex
+
+  DisplayVertex.prototype = new Vertex();
+  DisplayVertex.prototype.mRadius = 20;
+  DisplayVertex.prototype.xPos = 0;
+  DisplayVertex.prototype.yPos = 0;
+  DisplayVertex.prototype.yConnU = 0;
+  DisplayVertex.prototype.yConnB = 0;
+  DisplayVertex.prototype.xConnL = 0;
+  DisplayVertex.prototype.xConnR = 0;
+  // 4 connection points, bottom, up, left, right
+  DisplayVertex.prototype.mNx = 0;
+  DisplayVertex.prototype.mNy = 0;
+ 
+  DisplayVertex.prototype.updateGeometry = function() {  
+    this.yConnU = this.yPos - this.mRadius;
+    this.yConnB = this.yPos + this.mRadius;
+    this.xConnL = this.xPos - this.mRadius;
+    this.xConnR = this.xPos + this.mRadius;
+  };
+
+  function WeightedEdge() {
+	  this.to;//adjacent vertex
+	  this.weight;// edge weight
+	  this.tree;// if edge is in MST
+  }
+  
+  function AdjList(vertex) {
+    this.vertex = vertex;
+    this.next = null;
+    this.display = function() {
+      var curr = this;
+      while (curr != null) {
+        curr = curr.next;
+      }
+    };
+    this.append = function(nvertex) {
+      var curr = this;
+      if (curr.vertex == null) {// empty list
+        curr.vertex = nvertex;
+        return;
+      }
+      while (curr.next != null) {
+        curr = curr.next;        
+      }
+      curr.next = new AdjList(nvertex); 
+    };
+  }
+  
+  var geometry = 
+  		{"a0": [0, 0], "b0": [1, 0], "c0": [2, 0], "d0": [3, 0], "e0": [4, 0], "f0": [5, 0], "g0": [6, 0],
+		 "a1": [0, 1], "b1": [1, 1], "c1": [2, 1], "d1": [3, 1], "e1": [4, 1], "f1": [5, 1], "g1": [6, 1],
+		 "a2": [0, 2], "b2": [1, 2], "c2": [2, 2], "d2": [3, 2], "e2": [4, 2], "f2": [5, 2], "g2": [6, 2],  
+		 "a3": [0, 3], "b3": [1, 3], "c3": [2, 3], "d3": [3, 3], "e3": [4, 3], "f3": [5, 3], "g3": [6, 3],
+		 "a4": [0, 4], "b4": [1, 4], "c4": [2, 4], "d4": [3, 4], "e4": [4, 4], "f4": [5, 4], "g4": [6, 4]
+  };
+  
+
+  // base class
+  function Graph(N) {// A Weighted Graph contains a vector of N vertices
+    this.mV = [];
+    this.mAdj = [];// indexes of adjacent nodes with weight
+    this.mE = [];// all edges, array of arrays
+    this.init = function() {
+      for (var i = 0; i < N; i++) {
+        this.mAdj.push(new Array());
+      }
+    }; 
+    // v = vertex number 
+    this.init();
+  };// Graph
+
+
+  // get canvas context
+  if (!canvasSupport) {
+    alert("canvas not supported");
+    return;
+  } else {
+    var theCanvas = document.getElementById("canvas");
+    var context = theCanvas.getContext("2d");
+  }// if
+
+  var xMin = 0;
+  var yMin = 0;
+  var xMax = theCanvas.width;
+  var yMax = theCanvas.height; 
+
+  var xPos = [50, 150, 250, 350, 450, 550, 650];
+  var yPos = [100, 200, 300, 400, 500];
+
+  var names = ["a", "b", "c", "d", "e", "f" ,"g"];
+
+  var delay = 1000;// for animation only
+
+  var time;
+  var N = 35;
+  var Nedges = 25;
+
+  var results;
+  var animIndex;
+  
+  var graph = new Graph(N);// empty graph
+  var connGraph; // connected graph
+
+  var edgeList = new Array(Nedges);
+
+  function setTextStyle() {
+    context.fillStyle    = '#000000';
+    context.font         = '12px _sans';
+
+  }
+
+
+  function fillBackground() {
+    // draw background
+    context.fillStyle = '#ffffff';
+    context.fillRect(xMin, yMin, xMax, yMax);    
+  }// fillBackground
+
+  function drawVertex(vertex) {
+	
+    context.beginPath(); 
+    context.strokeStyle = "black"; 
+    context.lineWidth = 2;
+    context.arc(vertex.xPos, vertex.yPos, vertex.mRadius, (Math.PI/180)*0, (Math.PI/180)*360, true); // draw full circle
+    context.stroke();
+    context.closePath();   
+    var roff = vertex.mRadius + 2;
+    var keyDisp = "";
+    if (vertex.mKey != null) {
+      keyDisp += vertex.mKey; 
+    }
+    
+    context.fillText(vertex.mName, vertex.xPos, vertex.yPos);    
+    context.fillText(keyDisp, vertex.xPos + roff, vertex.yPos - roff);
+  }// drawVertex
+
+  function drawConnectMST(v1, v2, w, color) {    
+    context.strokeStyle = color;
+ 
+    // discuss according to geometry, with some cosmetic
+    var xa, ya, xb, yb;
+
+    var xoff = 0;
+    var yoff = 0;
+
+    if (v1.mNx == v2.mNx) {
+      xa = v1.xPos;
+      xb = v1.xPos;
+      if (v1.mNy < v2.mNy) {    
+        ya = v1.yConnB;       
+        yb = v2.yConnU;
+      } else {
+        ya = v1.yConnU;       
+        yb = v2.yConnB;
+      }
+    } else if (v1.mNy == v2.mNy) {
+      ya = v1.yPos;
+      yb = v1.yPos; 
+      if (v1.mNx < v2.mNx) {
+        xa = v1.xConnR; 
+        xb = v2.xConnL; 
+      } else {
+        xa = v1.xConnL;         
+        xb = v2.xConnR; 
+      }         
+    } else {
+      if (v1.mNx < v2.mNx) {
+        xa = v1.xConnR;
+        xb = v2.xConnL;
+        ya = v1.yPos;
+        yb = v2.yPos;
+        if (v1.mNy < v2.mNy) { 
+          xoff = -10; yoff = -10; 
+        } else { 
+          xoff = 10; yoff = -10; 
+        }           
+      } else {
+        xa = v1.xConnL;
+        xb = v2.xConnR;
+        ya = v1.yPos;
+        yb = v2.yPos;
+        if (v1.mNy < v2.mNy) { 
+          xoff = 10; yoff = -10; 
+        } else { 
+          xoff = -10; yoff = -10; 
+        }         
+      }      
+    }
+
+    drawLine([xa, ya], [xb, yb], xoff, yoff, w);
+  }// drawConnectMST
+
+
+  function drawLine(a, b, xoff, yoff, weight) {// a and points 
+  
+    var xa = a[0];
+    var ya = a[1];
+    var xb = b[0];
+    var yb = b[1];
+   
+    context.beginPath();
+    context.moveTo(xa, ya);
+    context.lineTo(xb, yb);
+    context.stroke();
+    context.closePath();
+    
+   // get midpoint
+   var xm = (xa + xb) / 2 + xoff;
+   var ym = (ya + yb) / 2 + yoff;
+
+   context.textBaseline = "bottom";
+   context.textAlign = "right";
+
+   context.fillText(weight, xm, ym);   
+
+   context.textBaseline = "middle";
+   context.textAlign = "center"; 
+
+  }// drawLine
+
+
+  function build(Nedges) {// build a graph but don't send any request yet 
+    // building an undirected graph
+    setTextStyle();
+    context.textBaseline = "middle";
+    context.textAlign = "center";
+
+    var vertex;
+    var N = 35;
+
+    var graph = new Graph(N);// temp graph
+
+    for (var i = 0; i < 5; i++) {
+      for (var j = 0; j < 7; j++) {
+        vertex = new DisplayVertex(names[j] + i);
+        vertex.mNx = j;
+        vertex.mNy = i;
+        vertex.xPos = xPos[j];
+        vertex.yPos = yPos[i];
+        vertex.updateGeometry();        
+        graph.mV.push(vertex);
+        drawVertex(vertex);         
+      }
+    }// for
+
+    var indMax = 0;
+    var size = 0;
+    var res;
+     
+    console.log("build begin");
+    // create initial graph  
+    randomizeUndir(graph, Nedges);
+       
+    initDraw(graph);
+    
+    console.log("build completed");
+    
+	var message;
+	  
+	var edgeArray = [];
+	var vertexArray = [];
+	  
+	var count = 0;
+	var edges;
+	var vertices;
+			
+	for (var j = 0; j < 35; j++) {// for each vertex
+		vertexArray.push({"name":graph.mV[j].mName});
+		for (var i = 0; i < graph.mAdj[j].length; i++) {// for each adjacent vertex		
+			edgeArray.push({"from":j, "to":graph.mAdj[j][i]});
+		}// i
+	}// j
+	  	  		  
+	edges = {"jsonEdges":edgeArray};
+	vertices = {"jsonVertices":vertexArray};
+	   
+	message = {"jsonEdges":edgeArray, "jsonVertices":vertexArray};  
+    var initGraphUrl = baseUrl + "/initGraph";
+    
+    $.ajax({
+		type : "POST",
+		contentType : "application/json",
+		url : initGraphUrl,
+		data : JSON.stringify(message),
+		dataType : 'json',
+		timeout : 100000,
+		success : function(data) {
+			console.log("INIT SUCCESSFUL");
+		},
+			
+		error : function(e) {
+			console.log("ERROR: ", e);
+		},
+		done : function(e) {
+			console.log("DONE");
+		}
+	});
+	   
+  }// build
+
+  
+	function drawConnect(v1, v2) {  
+  		// here v1 and v2 are vertices, not indices
+  		context.strokeStyle = "black";
+		
+    	context.lineWidth = 2;
+   
+    	// discuss according to geometry
+    	var xa, ya, xb, yb;
+
+    	if (v1.mNx == v2.mNx) {
+      		xa = v1.xPos;
+      		ya = (v1.mNy < v2.mNy) ? v1.yConnB : v2.yConnB; 
+      		xb = v1.xPos;
+      		yb = (v1.mNy < v2.mNy) ? v2.yConnU : v1.yConnU;
+    	} else if (v1.mNy == v2.mNy) {
+      		ya = v1.yPos;
+      		xa = (v1.mNx < v2.mNx) ? v1.xConnR : v2.xConnR; 
+      		yb = v1.yPos;
+      		xb = (v1.mNx < v2.mNx) ? v2.xConnL : v1.xConnL;
+    	} else {
+      		xa = (v1.mNx < v2.mNx) ? v1.xConnR : v2.xConnR; 
+      		ya = (v1.mNx < v2.mNx) ? v1.yPos : v2.yPos;
+      		xb = (v1.mNx < v2.mNx) ? v2.xConnL : v1.xConnL; 
+      		yb = (v1.mNx < v2.mNx) ? v2.yPos : v1.yPos;
+    	}
+    		
+     	context.beginPath();
+    	context.moveTo(xa, ya);
+    	context.lineTo(xb, yb);
+    	context.stroke();
+    	context.closePath();
+    	
+ 	}// drawConnect
+
+
+ 	function redraw(graph) {// graph is weighted undirected
+    	// only use mAdj for drawing connections
+    	// clear canvas
+    	fillBackground();
+
+    	setTextStyle();
+
+    	context.textBaseline = "middle";
+    	context.textAlign = "center";
+
+    	var N = graph.mV.length;
+
+    	// draw all vertices
+    	for (var i = 0; i < N; i++) {
+      		drawVertex(graph.mV[i]);
+    	}
+
+    	// draw all connections
+    	for (var i = 0; i < N; i++) {
+      		var conn = graph.mAdj[i]; // all vertices connected to vertex i
+      	
+      		for (var k = 0; k < conn.length; k++) {
+      			var color = conn[k].tree ? "blue" : "black";
+      			if ((graph.mV[i].mParent != null && graph.mV[i].mParent == conn[k].to) 
+      					|| (graph.mV[conn[k].to].mParent != null && graph.mV[conn[k].to].mParent == i)) {
+      				color = "blue";	
+      			} else {
+      				color = "black";
+      			}
+      			
+        		drawConnectMST(
+        					graph.mV[i], 
+        					graph.mV[conn[k].to], 
+        					conn[k].weight, 
+        					color
+        		);        
+      		}
+    	}
+    
+ 	}// redraw
+ 	
+ 	function initDraw(graph) {
+    	// only use mAdj for drawing connections
+    	// clear canvas
+    	fillBackground();
+    	setTextStyle();
+
+    	context.textBaseline = "middle";
+    	context.textAlign = "center";
+
+    	var N = graph.mV.length;
+
+    	// draw all vertices
+    	for (var i = 0; i < N; i++) {
+      		drawVertex(graph.mV[i]);
+    	}
+
+    	// draw all connections
+    	for (var i = 0; i < N; i++) {
+      		var conn = graph.mAdj[i]; // all vertices connected to vertex i
+      		for (var k = 0; k < conn.length; k++) {        
+        		drawConnect(graph.mV[i], graph.mV[conn[k]]);        
+      		}
+    	}
+ 	}// initDraw
+ 	
+ 	
+ 	
+  function redrawEdges(graph) {
+    var N = graph.mV.length;
+
+    fillBackground();
+
+    setTextStyle();
+
+    context.textBaseline = "middle";
+    context.textAlign = "center";
+
+    // draw all vertices
+    for (var i = 0; i < N; i++) {
+      drawVertex(graph.mV[i]);
+    }
+
+    var v1, v2;
+    var edge;
+    for (var i = 0; i < graph.mE.length; i++) {// all weighted edges
+      edge = graph.mE[i];// format [i, j, w]        
+      drawConnectMST(graph.mV[edge[0]], graph.mV[edge[1]], edge[2], "black");
+    }
+  }// redrawEdges
+
+  function redrawMST(graph, A) {
+    var N = graph.mV.length;
+
+    fillBackground();
+
+    setTextStyle();
+
+    context.textBaseline = "middle";
+    context.textAlign = "center";
+
+    // draw all vertices
+    for (var i = 0; i < N; i++) {
+      drawVertex(graph.mV[i]);
+    }
+
+    var v1, v2;
+    var edge;
+    var color;
+
+    for (var i = 0; i < graph.mE.length; i++) {// all weighted edges
+      edge = graph.mE[i];// format [i, j, w]
+      v1 = graph.mV[edge[0]];
+      if (A[i] == 1) {
+        color = "blue";
+      } else {
+        color = "black";
+      }// if 
+      drawConnectMST(graph.mV[edge[0]], graph.mV[edge[1]], edge[2], color);
+    }
+  }// redrawMST
+ 
+
+  function randomizeUndir(graph, Nedges) {  
+	$('#animation').find(':submit')[0].disabled = true;  
+    // undirected graph, adjacence matrix symmetric
+    var edges = 0;
+    var check = new Array(N);
+    for (var i = 0; i < N; i++) {
+      check[i] = new Array(N);
+    }
+
+    for (var i = 0; i < N; i++) {
+      for (var j = 0; j < N; j++) {
+        check[i][j] = 0;
+      }
+    }
+
+    var index1, index2;
+
+    // reset all vertices
+    for (var i = 0; i < graph.mV.length; i++) {
+      graph.mV[i].mColor = "black";
+      graph.mV[i].mKey = null;
+      graph.mV[i].mParent = null;
+      graph.mV[i].md = 0;
+      graph.mV[i].mf = 0;
+    }
+
+    // remove all existing edges
+    for (var i = 0; i < graph.mAdj.length; i++) {
+      graph.mAdj[i] = [];
+    }
+
+    while (edges < Nedges) {
+      index1 = Math.floor(Math.random() * N);// range
+      index2 = index1;
+      while (index2 == index1) {
+        index2 = Math.floor(Math.random() * N);// range
+      }
+      var nX1 = graph.mV[index1].mNx;
+      var nY1 = graph.mV[index1].mNy;
+      var nX2 = graph.mV[index2].mNx;
+      var nY2 = graph.mV[index2].mNy;      
+      if ((Math.abs(nX1-nX2) <= 1) && (Math.abs(nY1-nY2) <= 1) ) {// allow edge      
+        // check edge already present
+        if (check[index1][index2] == 0 && check[index2][index1] == 0) {
+          graph.mAdj[index1].push(index2);// symmetry
+          check[index1][index2] = 1;// symmetry
+          graph.mAdj[index2].push(index1);
+          check[index2][index1] = 1;
+          edges++;
+        }        
+      }
+    } 
+    
+    // check symmetry
+   
+    /*
+    graph.mAdj[0] = [8];
+    graph.mAdj[1] = [9, 7 ];
+    graph.mAdj[2] = [9];
+    graph.mAdj[3] = [11, 10, 4 ];
+    graph.mAdj[4] = [3 ];
+    graph.mAdj[5] = [6, 12 ];
+    graph.mAdj[6] = [5, 13 ];
+    graph.mAdj[7] = [1, 15 ];
+    graph.mAdj[8] = [0, 16, 9 ];
+    graph.mAdj[9] = [1, 8, 2 ];
+    graph.mAdj[10] = [18, 11, 3 ];//OK
+    graph.mAdj[11] = [12, 10, 3 ];
+    graph.mAdj[12] = [13, 18, 11, 5 ];
+    graph.mAdj[13] = [12, 19, 20, 6 ];
+    graph.mAdj[14] = [15 ];
+    graph.mAdj[15] = [23, 14, 7 ];
+    graph.mAdj[16] = [22, 8 ];
+    graph.mAdj[17] = [];
+    graph.mAdj[18] = [24, 12, 10 ];
+    graph.mAdj[19] = [13 ];
+    graph.mAdj[20] = [27, 13 ];//OK
+    graph.mAdj[21] = [];
+    graph.mAdj[22] = [16, 30 ];
+    graph.mAdj[23] = [15 ];
+    //graph.mAdj[24] = [30, 31, 18, 25 ];
+    graph.mAdj[24] = [18];
+    graph.mAdj[25] = [31, 33, 24 ];
+    graph.mAdj[26] = [32 ];
+    graph.mAdj[27] = [34, 20, 33 ];
+    graph.mAdj[28] = [];
+    graph.mAdj[29] = [30 ];
+    graph.mAdj[30] = [22, 29];
+    graph.mAdj[31] = [25, 32 ];
+    graph.mAdj[32] = [26, 31 ];
+    graph.mAdj[33] = [25, 27 ];
+    graph.mAdj[34] = [27];
+    */
+       
+    $('#animation').find(':submit')[0].disabled = true; 
+    $('#costDisplay').text("");
+	$('#findComp').find(':submit')[0].disabled = false;
+	$('#searchGraph').find(':submit')[0].disabled = true;
+    console.log("randomizeUndir completed");
+    $('#status').text('Graph initialized');
+  }// randomizeUndir
+
+
+    function findComp() {// only used to build a connected subgraph from the original graph 
+  	
+  		var message = {"type" : "FIND_COMP"};
+  		var findCompUrl = baseUrl + "/findComp";  		
+  	    $.ajax({
+  			type : "POST",
+  			contentType : "application/json",
+  			url : findCompUrl,
+  			data : JSON.stringify(message),
+  			dataType : 'json',
+  			timeout : 100000,
+  			success : function(data) {
+  				console.log("FIND COMPONENT SUCCESSFUL " + data["status"]);
+  				
+  				var connAdj = [];
+  				if (data["status"] == "INIT") {
+  					// extract connGraph from JSON object
+  					
+  					// refactoring starts here
+  					var snapVertices = data["snapshot"]["vertices"];
+  					var snapAdjacencies = data["snapshot"]["adjacencies"];
+  					
+  					connGraph = new Graph(snapVertices.length);
+  					
+  					var forge;
+  					
+					for (var i1 = 0; i1 < snapVertices.length; i1++) {
+					
+						//connGraph.mV[i1] = new DisplayVertex(snapVertices[i1].name);
+						connGraph.mV[i1] = new DisplayVertex(i1);
+						
+						connGraph.mV[i1].mNx = geometry[snapVertices[i1].name][0];
+  	  					connGraph.mV[i1].mNy = geometry[snapVertices[i1].name][1];
+  	  					connGraph.mV[i1].xPos = xPos[connGraph.mV[i1].mNx];
+						connGraph.mV[i1].yPos = yPos[connGraph.mV[i1].mNy];
+						connGraph.mV[i1].updateGeometry();
+							
+						connGraph.mAdj[i1] = [];
+											
+						forge = snapAdjacencies[i1].adjacency;// weighted edge
+								
+						for (var k = 0; k < forge.length; k++) {
+						
+							var edge = new WeightedEdge();
+							
+							edge.to = forge[k]["to"];
+							edge.weight = forge[k]["weight"];
+							connGraph.mAdj[i1].push(edge);				
+						}// for
+						
+					}// for
+					
+  				}// if
+  				 				
+  				console.log("redraw component");
+  				redraw(connGraph);
+  				
+  		 		$('#searchGraph').find(':submit')[0].disabled = false;
+  		  		$('#findComp').find(':submit')[0].disabled = true;
+  		  		$('#status').text('Component ready');
+  			},
+  				
+  			error : function(e) {
+  				console.log("ERROR: ", e);
+  			},
+  			done : function(e) {
+  				console.log("DONE");
+  			}
+  		});
+  		
+  	}// findComp
+  	
+	function search() {
+  		
+  		var message = {"type": "COLLECTION"};
+  		var searchUrl = baseUrl + "/search";
+  		$.ajax({
+				type : "POST",
+				contentType : "application/json",
+				url : searchUrl,
+				data : JSON.stringify(message),
+				dataType : 'json',
+				timeout : 100000,
+				success : function(data) {
+					console.log("SEARCH SUCCESSFUL");
+					
+					if (data["status"] == "OK") {
+						results = data["snapshots"];// make it visible
+						console.log("results " + results.length);
+							
+						$('#searchGraph').find(':submit')[0].disabled = true;
+						$('#animation').find(':submit')[0].disabled = false;	
+					}
+				},	
+			
+				error : function(e) {
+					console.log("ERROR: ", e);
+				},
+				done : function(e) {
+					console.log("DONE");
+				}
+			});
+  		
+  		$('#animation').find(':submit')[0].disabled = false;  
+  		console.log("search completed");
+  		$('#status').text('Search completed');
+  	}
+
+
+  	function animStep() {
+	  	if (animIndex < results.length) {
+	  		// extract all results
+			var snapVertices = results[animIndex]["vertices"];
+			var snapAdjacencies = results[animIndex]["adjacencies"];
+			var accept = results[animIndex]["accept"];			
+			var cost = results[animIndex]["cost"];
+			
+			connGraph = new Graph(snapVertices.length);
+			
+			var forge;
+				
+			for (var i1 = 0; i1 < snapVertices.length; i1++) {		
+				//connGraph.mV[i1] = new DisplayVertex(snapVertices[i1].name);
+				connGraph.mV[i1] = new DisplayVertex(i1);
+				
+				connGraph.mV[i1].mNx = geometry[snapVertices[i1].name][0];
+				connGraph.mV[i1].mNy = geometry[snapVertices[i1].name][1];
+				connGraph.mV[i1].xPos = xPos[connGraph.mV[i1].mNx];
+				connGraph.mV[i1].yPos = yPos[connGraph.mV[i1].mNy];
+				connGraph.mV[i1].updateGeometry();
+				connGraph.mV[i1].mKey = snapVertices[i1].key;
+				connGraph.mV[i1].mParent = snapVertices[i1].parent;
+				
+				connGraph.mAdj[i1] = [];
+								
+				forge = snapAdjacencies[i1].adjacency;// weighted edge
+			
+				for (var k = 0; k < forge.length; k++) {
+					var edge = new WeightedEdge();
+					
+					edge.to = forge[k]["to"];
+					edge.weight = forge[k]["weight"];
+					edge.tree = forge[k]["tree"];
+					connGraph.mAdj[i1].push(edge);
+										
+				}// for
+				
+			}// for
+		
+			console.log("redraw component");
+			redraw(connGraph);
+			
+			if (animIndex < results.length - 1) {// one more step
+				$('#costDisplay').text("Partial cost " + cost);
+				animIndex++;
+		 		setTimeout(function() { animStep(); }, delay);
+			} else {// last step
+		 		console.log("animation completed");
+				$('#costDisplay').text("Final cost " + cost);
+				$('#status').text('Animation completed');
+			}
+	  	}// if
+	}// animStep
+  	
+  	function anim() {
+		console.log("anim begin");
+  		$('#animation').find(':submit')[0].disabled = true;
+  		$("#findComp").find(':submit')[0].disabled = true;
+  		$('#searchGraph').find(':submit')[0].disabled = true;
+  		$('#status').text('Animation started');
+	  	animIndex = 0;
+	  	animStep();// start actual animation
+  	}// anim
+
+   
+  	// actual creattion of a connected graph
+  	build(Nedges);
+ 
+  	$("#animation").submit(function(event) { anim(); return false; }); 
+	$("#searchGraph").submit(function(event) { search(); return false; });
+  	$("#findComp").submit(function(event) { findComp(); return false; });
+  	$("#initelem").submit(function(event) { graph = build(Nedges); return false; });
+	$('#initelem').find(':submit')[0].disabled = false;
+
+}// canvasApp
+
+
+function eventWindowLoaded() {
+  canvasApp();
+}// eventWindowLoaded()
+
+window.addEventListener('load', eventWindowLoaded, false);
+
+</script>
+</head>
+
+<body id="all">
+
+  <nav>
+   
+   
+  </nav>
+
+  <header id="intro">
+  <h1>Prim Algorithm for Mimimum Spanning Tree</h1>
+  <p>I present here a Java based demonstration of the Prim algorithm that builds a minimum spanning tree for an undirected connected graph equipped with an edge weight.<br>
+I follow closely the approach of Cormen in his classical textbook.</p>
+  <h2>Explanations</h2>
+  <p>An undirected graph is randomly created. Then the largest connected component is extracted using Depth First Search algorithm.<br/>
+  Each edge is labeled with its own weight, also randomly generated.<br>
+Then the Prim algorithm is applied with all intermediate results saved as a collection.<br/>
+This collection is sent to the browser as a JSON object and used for animation.<br/>
+At each step all edges that belong to the tree are drawn in blue, the other edges are drawn in black.<br/>
+Note that an edge can be removed from the tree if a lower cost can be obtained by a different path. 
+The partial cost is displayed at each step.
+</p>
+  </header>
+
+  <div id="display">
+    <canvas id="canvas" width="700" height="600">
+      Your browser does not support HTML 5 Canvas
+    </canvas>
+    <footer>
+      <p>Dominique Ubersfeld, Cachan, France</p>
+    </footer> 
+ 
+  </div>
+
+  <div id="controls">
+    <div id="Prim">
+      <p>Click here to find the largest component</p>
+      <form name="findComp" id="findComp">
+        <input type="submit" name="MST-btn" value="Find Component">
+      </form>
+      <p>Click here to start Minimum Spanning Tree building process</p>
+      <form name="searchGraph" id="searchGraph">
+        <input type="submit" name="MST-btn" value="Search">
+      </form>
+      <p>Click here to start animation</p>
+      <form name="animation" id="animation">
+        <input type="submit" name="source-btn" value="Start">
+      </form>
+    </div>
+    <div id="randomize">
+      <p>Click here to randomize the graph edges</p>
+      <form name="initialize" id="initelem">
+        <input type="submit" name="randomize-btn" value="Randomize">
+      </form>
+    </div>   
+    <div id="msg">
+      <p id="status"></p>
+      <p id="costDisplay"></p>
+    </div> 
+    
+    
+  </div>
+
+</body>
+
+</html>

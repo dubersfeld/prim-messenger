@@ -1,0 +1,30 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /minimum-spanning-tree
+    
+spring:  
+  cloud:
+    stream:
+      bindings:
+        output:
+          destination: primBroadcastAll
+          content-type: application/json
+          binder: local_rabbit
+        input:
+          destination: primReceiveFromAll
+          content-type: application/json
+          binder: local_rabbit
+      binders:
+        local_rabbit:
+          type: rabbit
+          environment:
+            spring:
+              rabbitmq:
+                host: localhost
+                port: 5672
+                username: spring
+                password: password1234
+                virtual-host: /
+                
+worker-number: 3      
