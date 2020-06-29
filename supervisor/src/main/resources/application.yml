@@ -3,28 +3,21 @@ server:
   servlet:
     context-path: /minimum-spanning-tree
     
-spring:  
+spring:
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+                
   cloud:
     stream:
       bindings:
-        output:
-          destination: primBroadcastAll
-          content-type: application/json
-          binder: local_rabbit
         input:
           destination: primReceiveFromAll
-          content-type: application/json
-          binder: local_rabbit
-      binders:
-        local_rabbit:
-          type: rabbit
-          environment:
-            spring:
-              rabbitmq:
-                host: localhost
-                port: 5672
-                username: spring
-                password: password1234
-                virtual-host: /
-                
-worker-number: 3      
+          group: primWorkerQueue
+        output:
+          destination: primBroadcastAll
+           
+worker-number: 3                      

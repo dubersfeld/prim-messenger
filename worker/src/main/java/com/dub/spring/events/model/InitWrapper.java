@@ -1,5 +1,6 @@
 package com.dub.spring.events.model;
 
+
 import java.util.HashMap;
 import java.util.Map;
 

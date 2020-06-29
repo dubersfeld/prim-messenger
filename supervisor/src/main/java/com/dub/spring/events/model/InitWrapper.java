@@ -23,3 +23,4 @@ public class InitWrapper {
 		this.initMessages = initMessages;
 	}
 }
+

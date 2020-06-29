@@ -1,5 +1,6 @@
 package com.dub.spring.minimumSpanningTree;
 
+
 import java.io.Serializable;
 
 /**

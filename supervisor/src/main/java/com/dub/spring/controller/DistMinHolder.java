@@ -1,5 +1,6 @@
 package com.dub.spring.controller;
 
+
 import com.dub.spring.minimumSpanningTree.DistMin;
 
 /** 
@@ -45,3 +46,4 @@ public class DistMinHolder {
 	
 
 }
+

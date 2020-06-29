@@ -1,5 +1,6 @@
 package com.dub.spring.events.model;
 
+
 public class WorkerMessageModel {
 
     private String type;

@@ -37,8 +37,6 @@ public class WorkerMessageHandler {
 	@Autowired
 	private CountHolder countHolder;// used as a monitor  
 
-    //private static final Logger logger = LoggerFactory.getLogger(WorkerMessageHandler.class);
-
     @StreamListener(Sink.INPUT)
     public void loggerSink(WorkerMessageModel bookChange) {
        

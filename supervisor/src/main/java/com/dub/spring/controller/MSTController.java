@@ -50,7 +50,7 @@ public class MSTController {
 	private CountHolder countHolder;// used as a monitor
 	
 	@Autowired
-	SimpleSourceBean simpleSourceBean;
+	private SimpleSourceBean simpleSourceBean;
 	
 	// using a service layer
 	@Autowired
@@ -123,9 +123,10 @@ public class MSTController {
 	public StepResult findComp(@RequestBody SearchRequest message, 
 				HttpServletRequest request) 
 	{	
-		System.out.println("findComp begin");
+		
 		
 		comp = graph.getComp();// global variable
+		
 		
 		N = comp.getVertices().length;
 			
@@ -133,6 +134,8 @@ public class MSTController {
 		
 		snapshot.displayVertices();
 		snapshot.displayAdj();
+		
+	
 		
 		// check graph
 		graph.display();
@@ -148,6 +151,8 @@ public class MSTController {
 		comp.setDistanceMatrix(distMat);
 		
 		distMat.display();
+		
+	
 		
 		int[] vertices = new int[N];
 		Arrays.setAll(vertices, p -> p);
@@ -179,11 +184,20 @@ public class MSTController {
 			initMessages[i] = new InitMessage(distMat, workerVertices[i]);
 		}
 			
+		/** 
+		 * supervisor sends 
+		 * three different init messages to the three workers
+		 * */
 		// debugging only
+		System.out.println();
+		
 		initMessages[0].display();
+		
 		initMessages[1].display();
+		
 		initMessages[2].display();
 				
+		
 		// actual worker initialization begins here
 		messagingInit();
 		
@@ -371,15 +385,18 @@ public class MSTController {
 		/** 
 		 * Used only once to initialize all workers
 		 * */
+	
 		InitWrapper wrapper = new InitWrapper();
 		
 		for (int k = 0; k < Nworkers; k++) {
 			wrapper.getInitMessages().put(k, initMessages[k]);
 		}
 		
+		// initWrapper contains 3 messages, one for each worker consumer 
 		// reset countHolder
 		countHolder.setCount(0);
 		
+	
 		// actual broadcast
 		simpleSourceBean.broadcastInit(wrapper);
 		

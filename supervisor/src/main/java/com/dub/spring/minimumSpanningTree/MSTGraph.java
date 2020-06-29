@@ -1,7 +1,5 @@
 package com.dub.spring.minimumSpanningTree;
 
-import java.util.List;
-
 
 /** Graph has Vertices and Adjacency Lists */
 public class MSTGraph extends Graph {

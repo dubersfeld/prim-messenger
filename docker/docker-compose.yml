@@ -4,45 +4,28 @@ services:
 
  # rabbitmq-server
   rabbitmq-server:
-    image: rabbitmq:3-management
+    image: rabbitmq:3.8.5-management
     hostname: "my-rabbit"
     ports:
       # host:container
       - "15672:15672"
       - "5672:5672"
-    volumes:
-      - type: volume
-        source: rabbitmqdb
-        target: /var/lib/rabbitmq 
 
   # worker
   worker-1:
-    image: prim/worker
-    #ports:
-      # host:container
-      #- "8081:8080"
+    image: worker:0.0.1-SNAPSHOT
     environment:
       - WORKER_ID=0
 
   # worker
   worker-2:
-    image: prim/worker
-    #ports:
-      # host:container
-      #- "8082:8080"
+    image: worker:0.0.1-SNAPSHOT
     environment:
       - WORKER_ID=1
 
   # worker
   worker-3:
-    image: prim/worker
-    #ports:
-      # host:container
-      #- "8083:8080"
+    image: worker:0.0.1-SNAPSHOT
     environment:
       - WORKER_ID=2
 
-volumes:
-  rabbitmqdb:
-    external: 
-      name: prim-rabbitmq-db

@@ -1,5 +1,6 @@
 package com.dub.spring.minimumSpanningTree;
 
+
 public class WorkerDistanceArray {
 
 	private int Ncol;// number of columns
@@ -133,3 +134,4 @@ public class WorkerDistanceArray {
 		return true;
 	}	
 }
+

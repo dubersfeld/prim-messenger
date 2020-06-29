@@ -1,28 +1,27 @@
 server:
-  port: 8080
+  port: 8090
   servlet:
-    context-path: /worker
- 
-spring:  
+    context-path: /
+    
+spring:
+  rabbitmq:
+    host: rabbitmq-server
+    port: 5672
+    username: guest
+    password: guest
+
   cloud:
     stream:
       bindings:
+        input:
+          destination: primBroadcastAll 
+          #group: primSupervisorQueue
         output:
           destination: primReceiveFromAll
-          content-type: application/json
-          binder: local_rabbit
-        input:
-          destination: primBroadcastAll
-          content-type: application/json
-          binder: local_rabbit
-      binders:
-        local_rabbit:
-          type: rabbit
-          environment:
-            spring:
-              rabbitmq:
-                host: rabbitmq-server
-                port: 5672
-                username: spring
-                password: password1234
-                virtual-host: /
+          #group: primWorkerQueue 
+           
+worker:
+  id: ${WORKER_ID}           
+  
+    
+ 

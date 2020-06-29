@@ -1,6 +1,8 @@
 package com.dub.spring.events.source;
 
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cloud.stream.annotation.EnableBinding;
 import org.springframework.cloud.stream.messaging.Source;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
@@ -12,13 +14,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 
 @Component
+@EnableBinding(Source.class)
 public class SimpleSourceBean {
 	
 	ObjectMapper mapper = new ObjectMapper();
 	
+	//@Autowired
     private Source source;// provided
 
     // implementation of Source interface injected by Spring Cloud Stream
+   
     @Autowired
     public SimpleSourceBean(Source source) {
         this.source = source;

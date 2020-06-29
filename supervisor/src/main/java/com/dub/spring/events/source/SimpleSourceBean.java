@@ -2,32 +2,32 @@ package com.dub.spring.events.source;
 
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cloud.stream.annotation.EnableBinding;
 import org.springframework.cloud.stream.messaging.Source;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
 
-import com.dub.spring.events.model.WorkerMessageModel;
 import com.dub.spring.events.model.InitWrapper;
-
+import com.dub.spring.events.model.WorkerMessageModel;
 import com.dub.spring.minimumSpanningTree.DistMin;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 
 @Component
+@EnableBinding(Source.class)
 public class SimpleSourceBean {
 	
 	@Autowired
 	ObjectMapper mapper;
 	
-    private Source source;// provided
+	private Source source;// provided
 
     // implementation of Source interface injected by Spring Cloud Stream
     @Autowired
     public SimpleSourceBean(Source source) {
         this.source = source;
     }
-
             
     public void broadcastInit(InitWrapper wrapper) {
         /** This method is called only once */ 	
@@ -38,9 +38,11 @@ public class SimpleSourceBean {
          				"INIT",
          				wrapperStr
          			);
-    		System.out.println("Sending message to all workers");
+    		System.out.println("SimpleSourceBean sending message to all workers");
     		source.output().send(MessageBuilder.withPayload(change).build());
-
+	
+    		System.out.println("SimpleSourceBean broadCastInit return after send");
+        	
     	} catch (JsonProcessingException e) {
     		e.printStackTrace();
     	}  
